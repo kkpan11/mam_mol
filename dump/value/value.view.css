@@ -1,0 +1,20 @@
+[mol_dump_value] {
+	min-height: 2.5rem;
+	min-width: 2.5rem;
+}
+
+[mol_dump_value_simple] {
+	padding: 0;
+}
+
+[mol_dump_value_expand_content] {
+	padding-left: 1.5rem;
+	align-items: flex-start;
+}
+
+[mol_dump_value_expand_title_rows],
+[mol_dump_value_simple_rows],
+[mol_dump_value_expand_head] {
+	padding: 0;
+	gap: 0;
+}

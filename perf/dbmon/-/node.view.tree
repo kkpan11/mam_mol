@@ -1,0 +1,90 @@
+$mol_scroll $mol_view
+	scroll_top? 0
+	scroll_left? 0
+	field *
+		^
+		tabIndex <= tabindex -1
+	event *
+		^
+		scroll?event <=> event_scroll?event null
+
+$mol_list $mol_view
+	render_visible_only true
+	render_over 0
+	sub <= rows /$mol_view
+	Empty $mol_view
+	Gap_before $mol_view style * paddingTop <= gap_before 0
+	Gap_after $mol_view style * paddingTop <= gap_after 0
+	view_window /
+		0
+		0
+
+$mol_pop $mol_view
+	showed? false
+	align_vert \
+	align_hor \
+	prefer \vert
+	sub /
+		<= Anchor null
+	sub_visible /
+		<= Anchor
+		<= Bubble $mol_pop_bubble
+			align <= align \bottom_center
+			content <= bubble_content /$mol_view_content
+			height_max <= height_max 9999
+
+$mol_pop_bubble $mol_view
+	sub <= content /$mol_view_content
+	style *
+		^
+		maxHeight <= height_max 9999
+	attr *
+		^
+		mol_pop_align <= align \
+		tabindex 0
+
+$mol_pop_over $mol_pop
+	showed <= hovered? false
+	attr *
+		^
+		tabindex 0
+	event *
+		^
+		mouseenter?event <=> event_show?event null
+		mouseleave?event <=> event_hide?event null
+
+$mol_perf_dbmon $mol_scroll
+	title \dbmon ($mol)
+	sub /
+		<= Databases $mol_list
+			rows <= databases /
+	Database* $mol_view
+		sub <= database* /
+			<= Name* $mol_view
+				sub /
+					<= name* \
+			<= Query_count* $mol_perf_dbmon_query_count
+				label_mod <= query_count_label_mod* \
+				count <= query_count* 0
+			<= top_queries* /
+	Query* $mol_perf_dbmon_query
+		elapsed <= query_elapsed* \
+		elapsed_mod <= query_elapsed_mod* \
+		value <= query_value* \
+
+$mol_perf_dbmon_query_count $mol_view
+	sub /
+		<= Label $mol_view
+			attr * mol_perf_dbmon_query_count_label <= label_mod \
+			sub /
+				<= count 0
+
+$mol_perf_dbmon_query $mol_pop_over
+	minimal_height 40
+	Anchor <= Elapsed $mol_view
+		attr * mol_perf_dbmon_query_elapsed <= elapsed_mod \
+		sub /
+			<= elapsed \
+	bubble_content /
+		<= value \
+	align \left_center
