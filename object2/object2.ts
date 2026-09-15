@@ -1,4 +1,6 @@
 namespace $ {
+	
+	if( !Symbol.dispose ) ( Symbol as any ).dispose = Symbol( 'Symbol.dispose' )
 
 	export class $mol_object2 {
 		
@@ -10,7 +12,7 @@ namespace $ {
 		get $() {
 			if( this[ $mol_ambient_ref ] ) return this[ $mol_ambient_ref ]
 			const owner = $mol_owning_get( this ) as any
-			return this[ $mol_ambient_ref ] = owner?.$ || $mol_object2.$ as $
+			return this[ $mol_ambient_ref ] = owner?.$ || (this.constructor as { $?: $ }).$ || $mol_object2.$ as $
 		}
 		set $( next : $ ) {
 			if( this[ $mol_ambient_ref ] ) $mol_fail_hidden( new Error( 'Context already defined' ) )
@@ -38,8 +40,16 @@ namespace $ {
 			return this.toString()
 		}
 		
+		static [ $mol_key_handle ]() {
+			return this.toString()
+		}
+		
 		destructor() { }
 		static destructor() { }
+		
+		[ Symbol.dispose ] () {
+			this.destructor()
+		}
 		
 		//[ Symbol.toPrimitive ]( hint: string ) {
 		//	return hint === 'number' ? this.valueOf() : this.toString()

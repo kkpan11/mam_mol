@@ -69,12 +69,16 @@ namespace $ {
 	}
 
 	function primitive_type(input: $mol_tree2) {
-		let type = 'string'
-		if (input.type && $mol_view_tree2_value_number(input.type)) type = 'number'
+		
+		if( !input.type ) return input.data( 'string' )
+		
+		if( input.type === 'true' || input.type === 'false' ) return input.data( 'boolean' )
+			
+		if( $mol_tree2_js_is_number( input.type ) ) return input.data( 'number' )
 
-		if (input.type === 'true' || input.type === 'false') type = 'boolean'
-
-		return input.data(type)
+		if( /^[+-]?[\d_]+n$/.test( input.type ) ) return input.data( 'bigint' )
+		
+		return $mol_fail( new Error( 'Wrong primitive type', { cause: { type: input.type } } ) )
 	}
 
 	function readonly_arr(input: $mol_tree2, infered: readonly $mol_tree2[]) {
@@ -109,7 +113,7 @@ namespace $ {
 			const parent = this.$mol_view_tree2_child(klass)
 			const props = this.$mol_view_tree2_class_props(klass)
 			const aliases = [] as $mol_tree2[]
-			const context = { objects: [] as $mol_tree2[] }
+			const context = { klass: parent, prop: null as null | $mol_tree2 }
 			const klass_name = klass.type.slice(1)
 			types.push(
 				klass.struct( 'line', [
@@ -140,12 +144,12 @@ namespace $ {
 						'<=': (input) => return_type.call(this, klass.data( klass.type ), this.$mol_view_tree2_child(input)),
 						'=>': () => [],
 
-						'^': (input) => {
-							const host = input.kids.length ? klass : parent
+						'^': (input, belt, context) => {
+							const host = input.kids.length ? klass : context.klass
 							return return_type.call(
 								this,
 								host.data(host.type),
-								input.kids.length ? input.kids[0] : prop
+								input.kids.length ? input.kids[0] : ( context.prop ?? prop )
 							)
 						},
 
@@ -178,7 +182,7 @@ namespace $ {
 							if (prop_parts.key) {
 								types.push( type_enforce.call(
 									this,
-									method.data(`${method.type}_${klass_name}_${++assert_count}`),
+									method.data(`${method.type}__${klass_name}_${++assert_count}`),
 									parameters.call(this, main, prop, 0),
 									parameters.call(this, second_main, second_key, 0),
 								) )
@@ -187,7 +191,7 @@ namespace $ {
 							if (prop_parts.next) {
 								types.push( type_enforce.call(
 									this,
-									method.data(`${method.type}_${klass_name}_${++assert_count}`),
+									method.data(`${method.type}__${klass_name}_${++assert_count}`),
 									parameters.call(this, main, prop, prop_parts.key ? 1 : 0),
 									parameters.call(this, second_main, second_key, (left_parts.next ? left_parts : right_parts).key ? 1 : 0),
 								) )
@@ -281,7 +285,7 @@ namespace $ {
 									types.push(
 										type_enforce.call(
 											this,
-											input.data(`${ klass.type }_${prop.type.replace(/[\?\*]*/g, '')}_${++assert_count}`),
+											input.data(`${ klass.type }_${prop.type.replace(/[\?\*]*/g, '')}__${++assert_count}`),
 											result,
 											array_type
 										)
@@ -305,7 +309,7 @@ namespace $ {
 									types.push(
 										type_enforce.call(
 											this,
-											first.data(`${input.type}_${klass_name}_${++assert_count}`),
+											first.data(`${input.type}__${klass_name}_${++assert_count}`),
 											[
 												first.data('[ '),
 												...args,
@@ -330,7 +334,7 @@ namespace $ {
 										type_enforce.call(
 											this,
 											over.data(`${ input.type }__${ name.value }_${klass_name}_${++assert_count}`),
-											over.hack( belt ),
+											over.hack( belt, { ... context, klass: input, prop: over } ),
 											return_type.call(
 												this,
 												input.data( input.type ),

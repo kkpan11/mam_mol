@@ -4,6 +4,8 @@ namespace $ {
 	export interface $mol_wire_sub extends $mol_wire_pub {
 		
 		temp: boolean
+
+		pub_list: $mol_wire_pub[]
 		
 		/**
 		 * Begin auto wire to publishers.
@@ -33,7 +35,7 @@ namespace $ {
 		/**
 		 * Receive notification about publisher changes.
 		 */
-		absorb( quant: $mol_wire_cursor ): void
+		absorb( quant: $mol_wire_cursor, pos: number ): void
 		
 		/**
 		 * Unsubscribes from all publishers.

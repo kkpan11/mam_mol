@@ -20,18 +20,20 @@ namespace $ {
 				equal: ( next, prev )=> prev.textContent === next,
 				drop: ( prev, lead )=> list.removeChild( prev ),
 				insert: ( next, lead )=> list.insertBefore( <p data-rev="new">{ next }</p>, lead ? lead.nextSibling : list.firstChild ),
-				update: ( next, prev, lead )=> {
+				replace: ( next, prev, lead )=> {
 					prev.textContent = next
 					prev.setAttribute( 'data-rev', 'up' )
 					return prev
 				},
 			})
 			
-			$mol_assert_equal( list, <body>
-				<p data-rev="old">a</p>
-				<p data-rev="old">b</p>
-				<p data-rev="old">c</p>
-			</body> )
+			$mol_assert_equal( list.outerHTML, (
+				<body>
+					<p data-rev="old">a</p>
+					<p data-rev="old">b</p>
+					<p data-rev="old">c</p>
+				</body>
+			).outerHTML )
 			
 		},
 		
@@ -52,21 +54,23 @@ namespace $ {
 				equal: ( next, prev )=> prev.textContent === next,
 				drop: ( prev, lead )=> list.removeChild( prev ),
 				insert: ( next, lead )=> list.insertBefore( <p data-rev="new">{ next }</p>, lead ? lead.nextSibling : list.firstChild ),
-				update: ( next, prev, lead )=> {
+				replace: ( next, prev, lead )=> {
 					prev.textContent = next
 					prev.setAttribute( 'data-rev', 'up' )
 					return prev
 				},
 			})
 			
-			$mol_assert_equal( list, <body>
-				<p data-rev="old">a</p>
-				<p data-rev="old">b</p>
-				<p data-rev="new">X</p>
-				<p data-rev="new">Y</p>
-				<p data-rev="old">c</p>
-				<p data-rev="old">d</p>
-			</body> )
+			$mol_assert_equal( list.outerHTML, (
+				<body>
+					<p data-rev="old">a</p>
+					<p data-rev="old">b</p>
+					<p data-rev="new">X</p>
+					<p data-rev="new">Y</p>
+					<p data-rev="old">c</p>
+					<p data-rev="old">d</p>
+				</body>
+			).outerHTML )
 			
 		},
 		
@@ -84,18 +88,20 @@ namespace $ {
 				equal: ( next, prev )=> prev.textContent === next,
 				drop: ( prev, lead )=> list.removeChild( prev ),
 				insert: ( next, lead )=> list.insertBefore( <p data-rev="new">{ next }</p>, lead ? lead.nextSibling : list.firstChild ),
-				update: ( next, prev, lead )=> {
+				replace: ( next, prev, lead )=> {
 					prev.textContent = next
 					prev.setAttribute( 'data-rev', 'up' )
 					return prev
 				},
 			})
 			
-			$mol_assert_equal( list, <body>
-				<p data-rev="old">a</p>
-				<p data-rev="new">b</p>
-				<p data-rev="new">c</p>
-			</body> )
+			$mol_assert_equal( list.outerHTML, (
+				<body>
+					<p data-rev="old">a</p>
+					<p data-rev="new">b</p>
+					<p data-rev="new">c</p>
+				</body>
+			).outerHTML )
 			
 		},
 		
@@ -115,19 +121,21 @@ namespace $ {
 				equal: ( next, prev )=> prev.textContent === next,
 				drop: ( prev, lead )=> list.removeChild( prev ),
 				insert: ( next, lead )=> list.insertBefore( <p data-rev="new">{ next }</p>, lead ? lead.nextSibling : list.firstChild ),
-				update: ( next, prev, lead )=> {
+				replace: ( next, prev, lead )=> {
 					prev.textContent = next
 					prev.setAttribute( 'data-rev', 'up' )
 					return prev
 				},
 			})
 			
-			$mol_assert_equal( list, <body>
-				<p data-rev="old">a</p>
-				<p data-rev="new">b</p>
-				<p data-rev="up">c</p>
-				<p data-rev="old">d</p>
-			</body> )
+			$mol_assert_equal( list.outerHTML, (
+				<body>
+					<p data-rev="old">a</p>
+					<p data-rev="new">b</p>
+					<p data-rev="up">c</p>
+					<p data-rev="old">d</p>
+				</body>
+			).outerHTML )
 			
 		},
 		
@@ -150,19 +158,21 @@ namespace $ {
 				equal: ( next, prev )=> prev.textContent === next,
 				drop: ( prev, lead )=> list.removeChild( prev ),
 				insert: ( next, lead )=> list.insertBefore( <p data-rev="new">{ next }</p>, lead ? lead.nextSibling : list.firstChild ),
-				update: ( next, prev, lead )=> {
+				replace: ( next, prev, lead )=> {
 					prev.textContent = next
 					prev.setAttribute( 'data-rev', 'up' )
 					return prev
 				},
 			})
 			
-			$mol_assert_equal( list, <body>
-				<p data-rev="old">A</p>
-				<p data-rev="old">B</p>
-				<p data-rev="old">C</p>
-				<p data-rev="old">D</p>
-			</body> )
+			$mol_assert_equal( list.outerHTML, (
+				<body>
+					<p data-rev="old">A</p>
+					<p data-rev="old">B</p>
+					<p data-rev="old">C</p>
+					<p data-rev="old">D</p>
+				</body>
+			).outerHTML )
 			
 		},
 		
@@ -183,19 +193,21 @@ namespace $ {
 				equal: ( next, prev )=> prev.textContent === next,
 				drop: ( prev, lead )=> list.removeChild( prev ),
 				insert: ( next, lead )=> list.insertBefore( <p data-rev="new">{ next }</p>, lead ? lead.nextSibling : list.firstChild ),
-				update: ( next, prev, lead )=> {
+				replace: ( next, prev, lead )=> {
 					prev.textContent = next
 					prev.setAttribute( 'data-rev', 'up' )
 					return prev
 				},
 			})
 			
-			$mol_assert_equal( list, <body>
-				<p data-rev="old">a</p>
-				<p data-rev="up">X</p>
-				<p data-rev="up">Y</p>
-				<p data-rev="old">d</p>
-			</body> )
+			$mol_assert_equal( list.outerHTML, (
+				<body>
+					<p data-rev="old">a</p>
+					<p data-rev="up">X</p>
+					<p data-rev="up">Y</p>
+					<p data-rev="old">d</p>
+				</body>
+			).outerHTML )
 			
 		},
 		

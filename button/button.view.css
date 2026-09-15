@@ -10,6 +10,7 @@
 	word-break: normal;
 	cursor: default;
 	user-select: none;
+	-webkit-user-select: none;
 	border-radius: var(--mol_gap_round);
 	background: transparent;
 	color: inherit;
@@ -19,7 +20,7 @@
 	z-index: var(--mol_layer_hover);
 }
 
-[mol_button]:focus-visible {
+[mol_button]:focus {
 	outline: none;
 	z-index: var(--mol_layer_focus);
 }

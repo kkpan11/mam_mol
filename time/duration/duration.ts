@@ -1,6 +1,6 @@
 namespace $ {
 
-	export type $mol_time_duration_config = number | string | {
+	export type $mol_time_duration_config = number | string | readonly[ number, number, number, number, number, number ] | {
 		year? : number
 		month? : number
 		day? : number
@@ -38,17 +38,18 @@ namespace $ {
 				}
 
 				duration: {
-					const parser = /^P(?:([+-]?\d+(?:\.\d+)?)Y)?(?:([+-]?\d+(?:\.\d+)?)M)?(?:([+-]?\d+(?:\.\d+)?)D)?(?:T(?:([+-]?\d+(?:\.\d+)?)h)?(?:([+-]?\d+(?:\.\d+)?)m)?(?:([+-]?\d+(?:\.\d+)?)s)?)?$/i
+					const parser = /^(-?)P(?:([+-]?\d+(?:\.\d+)?)Y)?(?:([+-]?\d+(?:\.\d+)?)M)?(?:([+-]?\d+(?:\.\d+)?)D)?(?:T(?:([+-]?\d+(?:\.\d+)?)h)?(?:([+-]?\d+(?:\.\d+)?)m)?(?:([+-]?\d+(?:\.\d+)?)s)?)?$/i
 					
 					const found = parser.exec( config )
 					if( !found ) break duration
 						
-					if( found[1] ) this.year = Number( found[1] )
-					if( found[2] ) this.month = Number( found[2] )
-					if( found[3] ) this.day = Number( found[3] )
-					if( found[4] ) this.hour = Number( found[4] )
-					if( found[5] ) this.minute = Number( found[5] )
-					if( found[6] ) this.second = Number( found[6] )
+					const sign = found[1] ? -1 : 1
+					if( found[2] ) this.year = sign * Number( found[2] )
+					if( found[3] ) this.month = sign * Number( found[3] )
+					if( found[4] ) this.day = sign * Number( found[4] )
+					if( found[5] ) this.hour = sign * Number( found[5] )
+					if( found[6] ) this.minute = sign * Number( found[6] )
+					if( found[7] ) this.second = sign * Number( found[7] )
 					
 					return
 				}
@@ -68,12 +69,18 @@ namespace $ {
 				throw new Error( `Can not parse time duration (${ config })` )
 			}
 			
+			if( config instanceof Array ) {
+				;[ this.year, this.month, this.day, this.hour, this.minute, this.second ] = config
+				return
+			}
+			
 			this.year = config.year || 0
 			this.month = config.month || 0
 			this.day = config.day || 0
 			this.hour = config.hour || 0
 			this.minute = config.minute || 0
 			this.second = config.second || 0
+			
 		}
 
 		readonly year : number= 0
@@ -90,13 +97,13 @@ namespace $ {
 			let hour = this.hour ?? 0
 			let day = this.day ?? 0
 			
-			minute += Math.floor( second / 60 )
+			minute += Math.trunc( second / 60 )
 			second = second % 60
 			
-			hour += Math.floor( minute / 60 )
+			hour += Math.trunc( minute / 60 )
 			minute = minute % 60
 			
-			day += Math.floor( hour / 24 )
+			day += Math.trunc( hour / 24 )
 			hour = hour % 24
 			
 			return new $mol_time_duration({
@@ -151,6 +158,11 @@ namespace $ {
 			return super.toString( pattern )
 		}
 
+		toArray() {
+			return [ this.year, this.month, this.day, this.hour, this.minute, this.second ] as const
+		
+		}
+		
 		[ Symbol.toPrimitive ]( mode: 'default' | 'number' | 'string' ) {
 			return mode === 'number' ? this.valueOf() : this.toString()
 		}

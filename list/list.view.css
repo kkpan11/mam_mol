@@ -8,6 +8,10 @@
 	align-items: stretch;
 	align-content: stretch; */
 	transition: none;
+	/* will-change: contents; */
+}
+
+[mol_list]:where([mol_view_error]) {
 	min-height: 1.5rem;
 }
 

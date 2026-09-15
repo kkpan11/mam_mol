@@ -4,6 +4,10 @@ namespace $ {
 		
 		socket!: WebSocket
 		
+		origin() {
+			return this.socket.url
+		}
+
 		@ $mol_action
 		send_nil() {
 			if( this.socket.readyState !== this.socket.OPEN ) return
@@ -11,7 +15,7 @@ namespace $ {
 		}
 		
 		@ $mol_action
-		send_bin( data: Uint8Array ) {
+		send_bin( data: Uint8Array< ArrayBuffer > ) {
 			if( this.socket.readyState !== this.socket.OPEN ) return
 			this.socket.send( data )
 		}

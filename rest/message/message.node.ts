@@ -4,7 +4,6 @@ namespace $ {
 		
 		port!: $mol_rest_port
 		
-		@ $mol_mem
 		method() {
 			return 'POST'
 		}
@@ -14,13 +13,23 @@ namespace $ {
 			return new URL( `rest://localhost/` )
 		}
 		
-		@ $mol_mem
 		type() {
 			return 'application/octet-stream' as $mol_rest_port_mime
 		}
 		
-		@ $mol_mem
-		data(): null | string | Uint8Array | Element | object {
+		origin() {
+			return 'unknown'
+		}
+		
+		address() {
+			return 'unknown'
+		}
+		
+		protocols() {
+			return [] as readonly string[]
+		}
+		
+		data(): null | string | Uint8Array< ArrayBuffer > | Element | object {
 			return null
 		}
 		
@@ -43,7 +52,7 @@ namespace $ {
 		}
 		
 		reply(
-			data: null | string | Uint8Array | Element | object,
+			data: null | string | Uint8Array< ArrayBuffer > | Element | object,
 			meta?: {
 				type?: $mol_rest_port_mime,
 				code?: $mol_rest_code,
@@ -60,7 +69,9 @@ namespace $ {
 				port: this.port,
 				method: ()=> this.method(),
 				uri: $mol_const( uri ),
+				protocols: ()=> this.protocols(),
 				type: ()=> this.type(),
+				origin: ()=> this.origin(),
 				data: ()=> this.data(),
 			})
 		}
@@ -68,12 +79,16 @@ namespace $ {
 		@ $mol_action
 		derive(
 			method: string,
-			data: null | string | Uint8Array | Element | object,
+			data: null | string | Uint8Array< ArrayBuffer > | Element | object,
+			type: $mol_rest_port_mime = this.type(),
 		) {
 			return $mol_rest_message.make({
 				port: this.port,
 				method: $mol_const( method ),
 				uri: ()=> this.uri(),
+				protocols: ()=> this.protocols(),
+				type: $mol_const( type ),
+				origin: ()=> this.origin(),
 				data: $mol_const( data ),
 			})
 		}

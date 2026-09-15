@@ -10,12 +10,24 @@ namespace $.$$ {
 		@ $mol_mem
 		sub() {
 			const rows = this.rows()
-			return ( rows.length === 0 ) ? [ this.Empty() ] : rows
+			const next = ( rows.length === 0 ) ? [ this.Empty() ] : rows
+			
+			const prev = $mol_mem_cached( ()=> this.sub() )
+			const [ start, end ] = $mol_mem_cached( ()=> this.view_window() ) ?? [ 0, 0 ]
+			
+			if( prev && $mol_mem_cached( ()=> prev[ start ] !== next[ start ] ) ) {
+				const index = $mol_mem_cached( ()=> next.indexOf( prev[ start ] ) ) ?? -1
+				if( index >= 0 ) this.view_window_shift( index - start )
+			}
+			
+			return next
 		}
 
 		render_visible_only() {
 			return this.$.$mol_support_css_overflow_anchor()
 		}
+		
+		_view_window_last = [ 0, 0 ]
 
 		@ $mol_mem
 		view_window( next?: [ number , number ] ) : [ number , number ] {
@@ -28,7 +40,13 @@ namespace $.$$ {
 			const rect = this.view_rect()
 			if( next ) return next
 			
-			let [ min , max ] = $mol_mem_cached( ()=> this.view_window() ) ?? [ 0 , 0 ]
+			let [ min , max ] = $mol_mem_cached( ()=> this.view_window() ) ?? this._view_window_last
+			
+			const shift = this.view_window_shift()
+			this.view_window_shift( 0 )
+			
+			min += shift
+			max += shift
 
 			let max2 = max = Math.min( max , kids.length )
 			let min2 = min = Math.max( 0 , Math.min( min , max - 1 ) )
@@ -47,7 +65,7 @@ namespace $.$$ {
 
 			// change nothing when already covers all limits
 			if( top <= limit_top && bottom >= limit_bottom ) {
-				return [ min2 , max2 ]
+				return [ min2, max2 ]
 			}
 
 			// jumps when fully over limits
@@ -58,7 +76,7 @@ namespace $.$$ {
 				
 				while( min < ( kids.length - 1 ) ) {
 					
-					const height = kids[ min ].minimal_height()
+					const height = this.item_height_min( min )
 					if( top + height >= limit_top ) break
 					
 					top += height
@@ -90,53 +108,76 @@ namespace $.$$ {
 			// extend min to cover top limit
 			while( anchoring && (( top2 > limit_top )&&( min2 > 0 )) ) {
 				-- min2
-				top2 -= kids[ min2 ].minimal_height()
+				top2 -= this.item_height_min( min2 )
 			}
 			
 			// extend max to cover bottom limit
 			while( bottom2 < limit_bottom && max2 < kids.length ) {
-				bottom2 += kids[ max2 ].minimal_height()
+				bottom2 += this.item_height_min( max2 )
 				++ max2
 			}
 			
-			return [ min2 , max2 ]
+			return [ min2, max2 ]
+		}
+		
+		item_height_min( index: number ) {
+			try {
+				return this.sub()[ index ]?.minimal_height() ?? 0
+			} catch( error: any ) {
+				$mol_fail_log( error )
+				return 0
+			}
+		}
+
+		row_width_min( index: number ) {
+			try {
+				return this.sub()[ index ]?.minimal_width() ?? 0
+			} catch( error: any ) {
+				$mol_fail_log( error )
+				return 0
+			}
 		}
 
 		@ $mol_mem
 		gap_before() {
-			const skipped = this.sub().slice( 0 , this.view_window()[0] )
-			return Math.max( 0 , skipped.reduce( ( sum , view )=> sum + view.minimal_height() , 0 ) )
+			let gap = 0
+			const skipped = this.view_window()[0]
+			for( let i = 0; i < skipped; ++ i ) gap += this.item_height_min( i )
+			return gap
 		}
 
 		@ $mol_mem
 		gap_after() {
-			const skipped = this.sub().slice( this.view_window()[1] )
-			return Math.max( 0 , skipped.reduce( ( sum , view )=> sum + view.minimal_height() , 0 ) )
+			let gap = 0
+			const from = this.view_window()[1]
+			const to = this.sub().length
+			for( let i = from; i < to; ++ i ) gap += this.item_height_min( i )
+			return gap
 		}
 
 		@ $mol_mem
 		sub_visible() {
 			return [
 				... this.gap_before() ? [ this.Gap_before() ] : [],
-				... this.sub().slice( ... this.view_window() ),
+				... this.sub().slice( ... this._view_window_last = this.view_window() ),
 				... this.gap_after() ? [ this.Gap_after() ] : [],
 			]
 		}
 		
 		@ $mol_mem
 		minimal_height() {
+			let height = 0
+			const len = this.sub().length
+			for( let i = 0; i < len; ++ i ) height += this.item_height_min( i )
+			return height
+		}
 
-			return this.sub().reduce( ( sum , view )=> {
-
-				try {
-					return sum + view.minimal_height() 
-				} catch( error: any ) {
-					$mol_fail_log( error )
-					return sum
-				}
-
-			} , 0 )
-
+		@ $mol_mem
+		minimal_width() {
+			let width = 0
+			const len = this.sub().length
+			for( let i = 0; i < len; ++ i ) width = Math.max( width, this.item_width_min( i ) )
+			return width
 		}
 
 		force_render(

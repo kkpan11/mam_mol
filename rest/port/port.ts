@@ -10,9 +10,13 @@ namespace $ {
 		
 		send_code( code: $mol_rest_code ) {}
 		send_type( mime: $mol_rest_port_mime ) {}
+		send_name( name: string ) {}
+		
+		origin() { return 'unknown' }
+		address() { return 'unknown' }
 		
 		@ $mol_action
-		send_data( data: null | string | Uint8Array | Element | object ) {
+		send_data( data: null | string | Uint8Array< ArrayBuffer > | Element | object ) {
 			if( data === null ) return this.send_nil()
 			if( typeof data === 'string' ) return this.send_text( data )
 			if( data instanceof Uint8Array ) return this.send_bin( data )
@@ -26,7 +30,7 @@ namespace $ {
 		}
 		
 		@ $mol_action
-		send_bin( data: Uint8Array ) {
+		send_bin( data: Uint8Array< ArrayBuffer > ) {
 			this.send_code( 200 )
 			this.send_type( 'application/octet-stream' )
 		}

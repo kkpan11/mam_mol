@@ -10,7 +10,7 @@ namespace $ {
 		sunday
 	}
 	
-	export type $mol_time_moment_config = number | Date | string | {
+	export type $mol_time_moment_config = number | Date | string | readonly( number | undefined )[] | {
 		year? : number
 		month? : number
 		day? : number
@@ -67,16 +67,17 @@ namespace $ {
 				this.hour = config.getHours()
 				this.minute = config.getMinutes()
 				this.second = config.getSeconds() + config.getMilliseconds() / 1000
-				
-				const offset = - config.getTimezoneOffset()
-				this.offset = new $mol_time_duration({
-					hour : ( offset < 0 ) ? Math.ceil( offset / 60 ) : Math.floor( offset / 60 ) ,
-					minute : offset % 60
-				})
+				this.offset = new $mol_time_duration({ minute: - config.getTimezoneOffset() })
 				
 				return
 			}
-
+			
+			if( config instanceof Array ) {
+				;[ this.year, this.month, this.day, this.hour, this.minute, this.second ] = config
+				if( config[6] !== undefined ) this.offset = new $mol_time_duration( config[6] * 60_000 )
+				return
+			}
+			
 			this.year = config.year
 			this.month = config.month
 			this.day = config.day
@@ -107,10 +108,12 @@ namespace $ {
 			
 			const second = Math.floor( this.second ?? 0 )
 			
+			const current = new Date()
+			
 			const native = new Date(
-				this.year ?? 0 ,
-				this.month ?? 0 ,
-				( this.day ?? 0 ) + 1 ,
+				this.year ?? current.getFullYear() ,
+				this.month ?? ( this.year === undefined ? current.getMonth() : 0 ),
+				( this.day ?? ( this.year === undefined && this.month === undefined ? current.getDate() - 1 : 0 ) ) + 1 ,
 				this.hour ?? 0 ,
 				this.minute ?? 0 ,
 				second,
@@ -224,8 +227,12 @@ namespace $ {
 
 		toJSON() { return this.toString() }
 
-		toString( pattern = 'YYYY-MM-DDThh:mm:ss.sssZ' ) {
-			return super.toString( pattern )
+		toString( pattern = 'YYYY-MM-DDThh:mm:ss.sssZ', lang?: string ) {
+			return super.toString( pattern, lang )
+		}
+		
+		toArray() {
+			return [ this.year, this.month, this.day, this.hour, this.minute, this.second, this.offset?.count( 'PT1m' ) ] as const
 		}
 		
 		[ Symbol.toPrimitive ]( mode: 'default' | 'number' | 'string' ) {
@@ -238,6 +245,15 @@ namespace $ {
 				' ',
 				$mol_dev_format_accent( this.toString( 'YYYY-MM-DD hh:mm:ss.sss Z' ) ),
 			)
+		}
+
+		protected static formatters = {} as Record<string, Record<string, Intl.DateTimeFormat>>
+
+		static intl(lang: string | undefined, pattern: string, options: Intl.DateTimeFormatOptions) {
+			const group = this.formatters[lang ?? ''] ?? ( this.formatters[lang ?? ''] = {} )
+			group[pattern] = group[pattern] ?? new Intl.DateTimeFormat(lang, options)
+
+			return group[pattern]
 		}
 
 		/// Mnemonics:
@@ -263,12 +279,12 @@ namespace $ {
 				return String( moment.year % 100 )
 			} ,
 			
-			'Month' : ( pattern => ( moment : $mol_time_moment )=> {
+			'Month' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.month == null ) return ''
-				return pattern.format( moment.native )
-			} )( new Intl.DateTimeFormat( undefined , { month : 'long' } ) ) ,
+				return $mol_time_moment.intl(lang, 'Month', { month: 'long' }).format(moment.native)
+			},
 			
-			'DD Month' : ( pattern => ( moment : $mol_time_moment )=> {
+			'DD Month' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.month == null ) {
 					if( moment.day == null ) {
 						return ''
@@ -277,16 +293,14 @@ namespace $ {
 					}
 				} else {
 					if( moment.day == null ) {
-						return $mol_time_moment.patterns[ 'Month' ]( moment )
+						return $mol_time_moment.patterns[ 'Month' ]( moment, lang )
 					} else {
-						return pattern.format( moment.native )
+						return $mol_time_moment.intl(lang, 'DD Month', { day : '2-digit' , month : 'long' }).format(moment.native)
 					}
 				}
-			} )(
-				new Intl.DateTimeFormat( undefined , { day : '2-digit' , month : 'long' } )
-			) ,
+			},
 			
-			'D Month' : ( pattern => ( moment : $mol_time_moment )=> {
+			'D Month' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.month == null ) {
 					if( moment.day == null ) {
 						return ''
@@ -297,19 +311,17 @@ namespace $ {
 					if( moment.day == null ) {
 						return $mol_time_moment.patterns[ 'Month' ]( moment )
 					} else {
-						return pattern.format( moment.native )
+						return $mol_time_moment.intl(lang, 'D Month', { day : 'numeric' , month : 'long' }).format(moment.native)
 					}
 				}
-			} )(
-				new Intl.DateTimeFormat( undefined , { day : 'numeric' , month : 'long' } )
-			) ,
-			
-			'Mon' : ( pattern => ( moment : $mol_time_moment )=> {
+			},
+		
+			'Mon' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.month == null ) return ''
-				return pattern.format( moment.native )
-			} )( new Intl.DateTimeFormat( undefined , { month : 'short' } ) ) ,
+				return $mol_time_moment.intl(lang, 'Mon', { month : 'short' }).format(moment.native)
+			},
 			
-			'DD Mon' : ( pattern => ( moment : $mol_time_moment )=> {
+			'DD Mon' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.month == null ) {
 					if( moment.day == null ) {
 						return ''
@@ -318,16 +330,14 @@ namespace $ {
 					}
 				} else {
 					if( moment.day == null ) {
-						return $mol_time_moment.patterns[ 'Mon' ]( moment )
+						return $mol_time_moment.patterns[ 'Mon' ]( moment, lang )
 					} else {
-						return pattern.format( moment.native )
+						return $mol_time_moment.intl(lang, 'DD Mon', { day : '2-digit' , month : 'short' }).format(moment.native)
 					}
 				}
-			} )(
-				new Intl.DateTimeFormat( undefined , { day : '2-digit' , month : 'short' } )
-			) ,
+			},
 			
-			'D Mon' : ( pattern => ( moment : $mol_time_moment )=> {
+			'D Mon' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.month == null ) {
 					if( moment.day == null ) {
 						return ''
@@ -336,14 +346,12 @@ namespace $ {
 					}
 				} else {
 					if( moment.day == null ) {
-						return $mol_time_moment.patterns[ 'Mon' ]( moment )
+						return $mol_time_moment.patterns[ 'Mon' ]( moment, lang )
 					} else {
-						return pattern.format( moment.native )
+						return $mol_time_moment.intl(lang, 'D Mon', { day : 'numeric' , month : 'short' }).format(moment.native)
 					}
 				}
-			} )(
-				new Intl.DateTimeFormat( undefined , { day : 'numeric' , month : 'short' } )
-			) ,
+			},
 			
 			'-MM' : ( moment : $mol_time_moment )=> {
 				if( moment.month == null ) return ''
@@ -360,19 +368,19 @@ namespace $ {
 				return String( moment.month + 1 )
 			} ,
 			
-			'WeekDay' : ( pattern => ( moment : $mol_time_moment )=> {
+			'WeekDay' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.day == null ) return ''
 				if( moment.month == null ) return ''
 				if( moment.year == null ) return ''
-				return pattern.format( moment.native )
-			} )( new Intl.DateTimeFormat( undefined , { weekday : 'long' } ) ) ,
+				return $mol_time_moment.intl(lang, 'WeekDay', { weekday : 'long' }).format(moment.native)
+			},
 
-			'WD' : ( pattern => ( moment : $mol_time_moment )=> {
+			'WD' : ( moment : $mol_time_moment, lang?: string )=> {
 				if( moment.day == null ) return ''
 				if( moment.month == null ) return ''
 				if( moment.year == null ) return ''
-				return pattern.format( moment.native )
-			} )( new Intl.DateTimeFormat( undefined , { weekday : 'short' } ) ) ,
+				return $mol_time_moment.intl(lang, 'WD', { weekday : 'short' }).format(moment.native)
+			},
 			
 			'-DD' : ( moment : $mol_time_moment )=> {
 				if( moment.day == null ) return ''
@@ -448,7 +456,7 @@ namespace $ {
 			
 			'Z' : ( moment : $mol_time_moment )=> {
 				
-				const offset = moment.offset
+				const offset = moment.offset?.normal
 				if( !offset ) return ''
 				
 				let hour = offset.hour
@@ -459,7 +467,7 @@ namespace $ {
 					hour = -hour
 				}
 				
-				return sign + String( 100 + hour ).slice(1) + ':' + String( 100 + offset.minute ).slice(1)
+				return sign + hour.toString().padStart( 2, '0' ) + ':' + offset.minute.toString().padStart( 2, '0' )
 			}
 
 		}

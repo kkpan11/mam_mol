@@ -5,6 +5,12 @@ namespace $ {
 	 */
 	export class $mol_wire_pub extends Object {
 		
+		constructor( id = `$mol_wire_pub:${ $mol_guid() }` ) {
+			super()
+			this[ Symbol.toStringTag ] = id
+		}
+		
+		[ Symbol.toStringTag ]!: string
 		data = [] as unknown[]
 		
 		// Derived objects should be Arrays.
@@ -58,10 +64,9 @@ namespace $ {
 				this.peer_move( end, sub_pos )
 			}
 			
-			this.data.pop()
-			this.data.pop()
+			this.data.length = end
 			
-			if( this.data.length === this.sub_from ) this.reap()
+			if( end === this.sub_from ) this.reap()
 			
 		}
 		
@@ -96,7 +101,7 @@ namespace $ {
 		 */
 		emit( quant = $mol_wire_cursor.stale ) {
 			for( let i = this.sub_from; i < this.data.length; i += 2 ) {
-				;( this.data[i] as $mol_wire_sub ).absorb( quant )
+				;( this.data[i] as $mol_wire_sub ).absorb( quant, this.data[ i + 1 ] as number )
 			}
 		}
 		

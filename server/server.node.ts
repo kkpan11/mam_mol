@@ -60,7 +60,7 @@ namespace $ {
 		@ $mol_mem
 		socket() {
 
-			const socket = new $node.ws.WebSocket.Server({
+			const socket = new $node.ws.WebSocketServer({
 				server : this.http() ,
 				// perMessageDeflate: {
 				// 	zlibDeflateOptions: {
@@ -124,7 +124,8 @@ namespace $ {
 		expressFiler() {
 			return $node.express.static(
 				$node.path.resolve( this.rootPublic() ) ,{
-					maxAge : this.cacheTime()
+					maxAge : this.cacheTime(),
+					dotfiles: 'allow'
 				}
 			)
 		}

@@ -2,10 +2,10 @@ namespace $ {
 	
 	export class $mol_rest_port_webrtc extends $mol_rest_port {
 		
-		channel!: InstanceType< typeof import( 'node-datachannel/polyfill' ).RTCDataChannel >
+		channel!: RTCDataChannel
 		
 		@ $mol_action
-		send_bin( data: Uint8Array ) {
+		send_bin( data: Uint8Array< ArrayBuffer > ) {
 			if( this.channel.readyState !== "open" ) return
 			this.channel.send( data )
 		}

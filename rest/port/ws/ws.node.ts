@@ -2,8 +2,22 @@ namespace $ {
 	
 	export class $mol_rest_port_ws_node extends $mol_rest_port_ws {
 		
+		prolog!: InstanceType< $node['http']['IncomingMessage'] >
 		socket!: InstanceType< $node['stream']['Duplex'] >
 		
+		@ $mol_mem
+		upgrade(): $mol_rest_message_http {
+			return $mol_rest_message_http.make({ port: this, input: this.prolog })
+		}
+		
+		origin() {
+			return this.upgrade().origin()
+		}
+
+		address() {
+			return this.upgrade().address()
+		}
+
 		@ $mol_action
 		send_nil() {
 			if( this.socket.writableEnded ) return
@@ -11,7 +25,7 @@ namespace $ {
 		}
 		
 		@ $mol_action
-		send_bin( data: Uint8Array ) {
+		send_bin( data: Uint8Array< ArrayBuffer > ) {
 			if( this.socket.writableEnded ) return
 			this.socket.write( $mol_websocket_frame.make( 'bin', data.byteLength ).asArray() )
 			this.socket.write( data )

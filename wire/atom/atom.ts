@@ -16,13 +16,13 @@ namespace $ {
 			task: ( this: Host, ... args: Args )=> Result,
 		): $mol_wire_atom< Host, Args, Result > {
 			
-			const field = task.name + '<>'
+			const field = task.name + '()'
 			
 			const existen = Object.getOwnPropertyDescriptor( host ?? task, field )?.value
 			if( existen ) return existen
 			
 			const prefix = (host as any)?.[ Symbol.toStringTag ] ?? ( host instanceof Function ? $$.$mol_func_name( host ) : host )
-			const key = prefix + ( '.' + field )
+			const key = prefix + ( '.' + task.name + '<>' )
 			
 			const fiber = new $mol_wire_atom( key, task, host, [] as any as Args )
 			;( host as any ?? task )[ field ] = fiber
@@ -40,7 +40,7 @@ namespace $ {
 			key: Args[0],
 		): $mol_wire_atom< Host, Args, Result > {
 			
-			const field = task.name + '<>'
+			const field = task.name + '()'
 			let dict = Object.getOwnPropertyDescriptor( host ?? task, field )?.value
 			const prefix = (host as any)?.[ Symbol.toStringTag ] ?? ( host instanceof Function ? $$.$mol_func_name( host ) : host )
 			const key_str = $mol_key( key )
@@ -90,10 +90,23 @@ namespace $ {
 		}
 		
 		/**
-		 * Update fiber value through another temp fiber.
+		 * Update atom value through another temp fiber.
 		 */
 		@ $mol_wire_method
 		resync( args: Args ) {
+			
+			// enforce pulling tasks abort
+			for(
+				let cursor = this.pub_from;
+				cursor < this.sub_from;
+				cursor += 2
+			) {
+				const pub = this.data[ cursor ] as $mol_wire_pub
+				if( pub && pub instanceof $mol_wire_task ) {
+					pub.destructor()
+				}
+			}
+			
 			return this.put( this.task.call( this.host!, ... args ) )
 		}
 		
@@ -121,15 +134,20 @@ namespace $ {
 			
 			super.destructor()
 			
-			const prev = this.cache
-			if( $mol_owning_check( this, prev ) ) {
-				prev.destructor()
-			}
-			
 			if( this.pub_from === 0 ) {
 				;( this.host as any ?? this.task )[ this.field() ] = null
 			} else {
-				;( this.host as any ?? this.task )[ this.field() ].delete( $mol_key( this.args[0] ) )
+				
+				const key = $mol_key( this.args[0] )
+				const map = ( this.host as any ?? this.task )[ this.field() ]
+				
+				if( !map.has( key ) ) this.$.$mol_log3_warn({
+					place: this,
+					message: 'Absent key on destruction',
+					hint: 'Check for $mol_key(key) is not changed',
+				})
+				
+				map.delete( key )
 			}
 			
 		}

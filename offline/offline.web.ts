@@ -29,6 +29,7 @@ namespace $ {
 			self.addEventListener( 'fetch' , ( event : any )=> {
 				
 				const request = event.request as Request
+				// console.log( 'FETCH', request.mode, request.cache, request.url )
 				
 				if( blacklist.has( request.url.replace( /^https?:/, '' ) ) ) {
 					return event.respondWith(
@@ -47,8 +48,9 @@ namespace $ {
 				if( /\?/.test( request.url ) ) return
 				if( request.cache === 'no-store' ) return
 				
-				const fetch_data = () => fetch( request ).then( response => {
+				const fetch_data = () => fetch( new Request( request, { credentials: 'omit' } ) ).then( response => {
 					if (response.status !== 200) return response
+					
 					event.waitUntil(
 						caches.open( '$mol_offline' ).then(
 							cache => cache.put( request , response )
@@ -58,9 +60,29 @@ namespace $ {
 					return response.clone()
 				} )
 
+				const enrich = ( response: Response )=> {
+
+					// console.log( 'ENRICH', response.status, response.url )
+					if( !response.status ) return response
+					
+					const headers = new Headers( response.headers )
+					headers.set( "$mol_offline", "" )
+					headers.set( "Origin-Agent-Cluster", "?1" ) // prevent thread sharing
+					// headers.set( "Cross-Origin-Embedder-Policy", "credentialless" )
+					// headers.set( "Cross-Origin-Resource-Policy", "cross-origin" )
+					// headers.set( "Cross-Origin-Opener-Policy", "same-origin" )
+					
+					return new Response( response.body, {
+						status: response.status,
+						statusText: response.statusText,
+						headers,
+					});
+
+				}
+
 				const fresh = request.cache === 'force-cache' ? null : fetch_data()
 
-				if (fresh) event.waitUntil( fresh )
+				if (fresh) event.waitUntil( fresh.then( enrich ) )
 
 				event.respondWith(
 					caches.match( request ).then(
@@ -80,10 +102,10 @@ namespace $ {
 										cloned.headers.set( '$mol_offline_remote_status', message )
 										return cloned
 									})
-								: fresh
+								: fresh!
 							)
 							: ( cached || fresh || fetch_data() )
-					)
+					).then( enrich )
 				)
 				
 			})
@@ -95,14 +117,23 @@ namespace $ {
 		} else if( !navigator.serviceWorker ) {
 			console.warn( 'Service Worker is not supported.' )
 		} else {
-			navigator.serviceWorker.register( 'web.js' ).then( reg => {
-				// reg.addEventListener( 'updatefound', ()=> {
-				// 	const worker = reg.installing!
-				// 	worker.addEventListener( 'statechange', ()=> {
-				// 		if( worker.state !== 'activated' ) return
-				// 		window.location.reload()
-				// 	} )
-				// } )
+			$mol_dom.addEventListener( 'DOMContentLoaded', ()=> {
+				navigator.serviceWorker.register( 'web.js' ).then( reg => {
+					reg.addEventListener( 'updatefound', ()=> {
+						
+						$$.$mol_log3_rise({
+							place: '$mol_offline',
+							message: 'Outdated',
+						})
+						
+						const worker = reg.installing!
+						worker.addEventListener( 'statechange', ()=> {
+							if( worker.state !== 'activated' ) return
+							window.location.reload()
+						} )
+						
+					} ) 
+				} )
 			} )
 		}
 

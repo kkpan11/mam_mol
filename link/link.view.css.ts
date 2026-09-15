@@ -12,8 +12,9 @@ namespace $ {
 		boxSizing: 'border-box',
 		position: 'relative',
 		minWidth: rem(2.5),
+		minHeight: rem(2.5),
 		gap: $mol_gap.space,
-		
+
 		border: {
 			radius: $mol_gap.round,
 		},
@@ -26,22 +27,16 @@ namespace $ {
 			
 		},
 
-		':focus-visible': {
-			
+		':focus': {
 			outline: 'none',
-			
-			background: {
-				color: $mol_theme.hover,
-			},
-			
 		},
 
-		// ':has(:focus-visible)': {
-		// 	outline: 'none',
-		// 	background: {
-		// 		color: $mol_theme.hover,
-		// 	}
-		// },
+		':focus-visible': {
+			outline: 'none',
+			background: {
+				color: $mol_theme.hover,
+			}
+		},
 		
 		':active': {
 			color: $mol_theme.focus,

@@ -5,6 +5,8 @@ deploy \/mol/app/docs/manifest.json
 include \/mol/offline/install
 include \/mol/app/demo
 
+include \/jin/keyboard/demo
+include \/rise/demo
 include \/hyoo/crowd/text/demo
 
 include \/mol/app/hello/demo
@@ -68,6 +70,7 @@ include \/mol/deck/demo
 include \/mol/dimmer/demo
 include \/mol/drag/demo
 include \/mol/dump/demo
+include \/mol/emoji/safe/demo
 include \/mol/expander/demo
 include \/mol/fetch/demo
 include \/mol/filler/demo
@@ -132,6 +135,7 @@ include \/mol/time/interval/demo
 include \/mol/time/moment/demo
 include \/mol/toolbar/demo
 include \/mol/transit/demo
+include \/mol/vary/edit/demo
 include \/mol/video/player/demo
 include \/mol/video/camera/demo
 include \/mol/password/demo

@@ -1,10 +1,9 @@
 namespace $ {
 
-	export class $mol_fetch_response extends $mol_object2 {
+	export class $mol_fetch_response extends $mol_object {
 
-		constructor( readonly native : Response ) {
-			super()
-		}
+		readonly native !: Response
+		readonly request !: $mol_fetch_request
 
 		status() {
 			const types = [ 'unknown', 'inform', 'success', 'redirect', 'wrong', 'failed' ] as const
@@ -14,9 +13,13 @@ namespace $ {
 		code() {
 			return this.native.status
 		}
+
+		ok() {
+			return this.native.ok
+		}
 		
 		message() {
-			return this.native.statusText || `HTTP Error ${ this.code() }`
+			return $mol_rest_code[this.code()] || `HTTP Error ${this.code()}`
 		}
 
 		headers() {
@@ -37,8 +40,7 @@ namespace $ {
 
 			const buffer = this.buffer()
 
-			const native = this.native
-			const mime = native.headers.get( 'content-type' ) || ''
+			const mime = this.mime() || ''
 			const [,charset] = /charset=(.*)/.exec( mime ) || [, 'utf-8']
 			
 			const decoder = new TextDecoder( charset )
@@ -47,16 +49,16 @@ namespace $ {
 		}	
 
 		json() {
-			return $mol_wire_sync( this.native ).json() as unknown
+			return $mol_error_enriched(this, () => $mol_wire_sync( this.native ).json() as unknown )
 		}	
 
 		blob() {
-			return $mol_wire_sync( this.native ).blob()
+			return $mol_error_enriched(this, () => $mol_wire_sync( this.native ).blob() )
 		}
 
 
 		buffer() {
-			return $mol_wire_sync( this.native ).arrayBuffer()
+			return $mol_error_enriched(this, () => $mol_wire_sync( this.native ).arrayBuffer() )
 		}
 
 		@ $mol_action
@@ -76,18 +78,16 @@ namespace $ {
 
 	}
 
-	export class $mol_fetch extends $mol_object2 {
-		
-		static request( input : RequestInfo , init : RequestInit = {} ) {
-			const native = globalThis.fetch ?? $node['undici'].fetch
-			
+	export class $mol_fetch_request extends $mol_object {
+
+		readonly native!: Request
+
+		response_async( ) {
 			const controller = new AbortController()
 			let done = false
 			
-			const promise = native( input , {
-				... init,
-				signal: controller!.signal,
-			} ).finally( ()=> {
+			const request = new Request(this.native, { signal: controller.signal })
+			const promise = fetch( request ).finally( ()=> {
 				done = true
 			} )
 			
@@ -101,55 +101,69 @@ namespace $ {
 		}
 
 		@ $mol_action
-		static response( input: RequestInfo, init?: RequestInit ) {
-			return new $mol_fetch_response( $mol_wire_sync( this ).request( input , init ) )
+		response() {
+			const native = $mol_error_enriched(this, () => $mol_wire_sync( this ).response_async())
+
+			return this.$.$mol_fetch_response.make({
+				native,
+				request: this
+			})
 		}
 
-		@ $mol_action
-		static success( input: RequestInfo, init?: RequestInit ) {
+		success() {
 
-			const response = this.response( input , init )
+			const response = this.response()
 			if( response.status() === 'success' ) return response
 			
-			throw new Error( response.message() )
+			throw new Error( response.message(), { cause: response } )
+		}
+	}
+
+	export class $mol_fetch extends $mol_object {
+		
+		@ $mol_action
+		static request( input: RequestInfo, init?: RequestInit ) {
+			return this.$.$mol_fetch_request.make({
+				native: new Request(input , init)
+			})
 		}
 
-		@ $mol_action
+		static response( input: RequestInfo, init?: RequestInit ) {
+			return this.request(input, init).response()
+		}
+
+		static success( input: RequestInfo, init?: RequestInit ) {
+			return this.request( input , init ).success()
+		}
+
 		static stream( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).stream()
 		}
 
-		@ $mol_action
 		static text( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).text()
 		}	
 
-		@ $mol_action
 		static json( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).json()
 		}
 
-		@ $mol_action
 		static blob( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).blob()
 		}
 
-		@ $mol_action
 		static buffer( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).buffer()
 		}	
 
-		@ $mol_action
 		static xml( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).xml()
 		}
 
-		@ $mol_action
 		static xhtml( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).xhtml()
 		}
 
-		@ $mol_action
 		static html( input: RequestInfo, init?: RequestInit ) {
 			return this.success( input , init ).html()
 		}

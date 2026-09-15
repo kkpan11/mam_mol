@@ -6,7 +6,10 @@ namespace $ {
 		tagLength: 32,
 	}
 	
-	/** Symmetric cipher with shortest payload */
+	/**
+	 * Symmetric cipher with shortest payload.
+	 * @deprecated Use $mol_crypto_sacred.
+	 */
 	export class $mol_crypto_secret extends Object {
 		
 		/** Key size in bytes. */
@@ -42,7 +45,7 @@ namespace $ {
 			
 		}
 		
-		static async pass( pass: string, salt: Uint8Array ) {
+		static async pass( pass: string, salt: Uint8Array< ArrayBuffer > ) {
 			
 			return new this(
 				await $mol_crypto_native.subtle.deriveKey(

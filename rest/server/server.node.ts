@@ -2,6 +2,10 @@ namespace $ {
 	
 	export class $mol_rest_server extends $mol_object {
 		
+		log() {
+			return this.$.$mol_state_arg.value( 'mol_rest_server_log' ) !== null
+		}
+		
 		@ $mol_mem
 		port() {
 			return 0
@@ -21,7 +25,7 @@ namespace $ {
 			} )
 			
 			server.on( 'upgrade',
-				( req, sock, head )=> $mol_wire_async( this ).ws_upgrade( req, sock, head )
+				( req, sock, head: Buffer< ArrayBuffer > )=> $mol_wire_async( this ).ws_upgrade( req, sock, head )
 			)
 			
 			server.listen( this.port(), ()=> {
@@ -51,10 +55,11 @@ namespace $ {
 			const port = $mol_rest_port_http.make({ output: res })
 			const msg = $mol_rest_message_http.make({ port, input: req })
 			
-			$mol_wire_sync( this.$ ).$mol_log3_rise({
+			if( this.log() ) $mol_wire_sync( this.$ ).$mol_log3_rise({
 				place: this,
 				message: msg.method(),
 				url: msg.uri(),
+				origin: msg.origin(),
 				remote: req.socket.remoteAddress + ':' + req.socket.remotePort
 			})
 			
@@ -73,6 +78,9 @@ namespace $ {
 				$mol_wire_sync( $$ ).$mol_log3_fail({
 					place: this,
 					message: error.message ?? '',
+					origin: msg.origin(),
+					address: msg.address(),
+					cause: error.cause,
 					stack: error.stack,
 				})
 				
@@ -87,17 +95,28 @@ namespace $ {
 		ws_upgrade(
 			req: InstanceType< $node['http']['IncomingMessage'] >,
 			socket: InstanceType< $node['stream']['Duplex'] >,
-			head: Buffer,
+			head: Buffer< ArrayBuffer >,
 		) {
 			
-			const port = $mol_rest_port_ws_node.make({ socket })
-			const upgrade = $mol_rest_message_http.make({ port, input: req })
+			const port = $mol_rest_port_ws_node.make({ socket, prolog: req })
+			const upgrade = port.upgrade()
+			let protocol = ''
 			
 			try {
 				
-				$mol_wire_sync( this.root() ).REQUEST(
+				protocol = $mol_wire_sync( this.root() ).REQUEST(
 					upgrade.derive( 'OPEN', null )
 				)
+				
+				if( !protocol ) {
+					socket.write(
+						'HTTP/1.1 400 Bad Request\r\n' +
+						'\r\n' +
+						`Unsupported Protocols: ${ upgrade.protocols() }`
+					)
+					socket.end()
+					return
+				}
 				
 			} catch( error: any ) {
 				
@@ -106,6 +125,9 @@ namespace $ {
 				$mol_wire_sync( $$ ).$mol_log3_fail({
 					place: this,
 					message: error.message ?? '',
+					origin: upgrade.origin(),
+					address: upgrade.address(),
+					cause: error.cause,
 					stack: error.stack,
 				})
 				
@@ -115,15 +137,16 @@ namespace $ {
 			
 			const onclose = $mol_wire_async( ()=> {
 				
-				$mol_wire_sync( this.$ ).$mol_log3_done({
+				if( this.log() ) $mol_wire_sync( this.$ ).$mol_log3_done({
 					place: this,
 					message: 'CLOSE',
 					url: upgrade.uri(),
+					origin: upgrade.origin(),
 					port: $mol_key( port ),
 				})
 				
 				try {
-				
+					
 					$mol_wire_sync( this.root() ).REQUEST(
 						upgrade.derive( 'CLOSE', null )
 					)
@@ -135,6 +158,9 @@ namespace $ {
 					$mol_wire_sync( $$ ).$mol_log3_fail({
 						place: this,
 						message: error.message ?? '',
+						origin: upgrade.origin(),
+						address: upgrade.address(),
+						cause: error.cause,
 						stack: error.stack,
 					})
 					
@@ -146,7 +172,7 @@ namespace $ {
 			socket.on( 'end', onclose )
 			socket.on( 'error', onclose )
 			
-			socket.on( 'data', ( chunk: Buffer )=> this.ws_income( chunk, upgrade, socket ) )
+			socket.on( 'data', ( chunk: Buffer< ArrayBuffer > )=> this.ws_income( chunk, upgrade, socket ) )
 			
 			const key_in = req.headers["sec-websocket-key"]
 			const magic = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -157,23 +183,25 @@ namespace $ {
 				'Upgrade: WebSocket\r\n' +
 				'Connection: Upgrade\r\n' +
 				`Sec-WebSocket-Accept: ${key_out}\r\n` +
+				`Sec-WebSocket-Protocol: ${protocol}\r\n` +
 				'\r\n'
-			);
+			)
 			
-			$mol_wire_sync( this.$ ).$mol_log3_come({
+			if( this.log() ) $mol_wire_sync( this.$ ).$mol_log3_come({
 				place: this,
 				message: 'OPEN',
 				url: upgrade.uri(),
+				origin: upgrade.origin(),
 				port: $mol_key( port ),
 			})
 			
 		}
 		
-		_ws_income_chunks = new WeakMap< InstanceType< typeof $node.stream.Duplex >, Uint8Array[] >
-		_ws_income_frames = new WeakMap< InstanceType< typeof $node.stream.Duplex >, ( string | Uint8Array )[] >
+		_ws_income_chunks = new WeakMap< InstanceType< typeof $node.stream.Duplex >, Uint8Array< ArrayBuffer >[] >
+		_ws_income_frames = new WeakMap< InstanceType< typeof $node.stream.Duplex >, ( string | Uint8Array< ArrayBuffer > )[] >
 		
 		async ws_income(
-			chunk: Buffer,
+			chunk: Buffer< ArrayBuffer >,
 			upgrade: $mol_rest_message,
 			sock: InstanceType< typeof $node.stream.Duplex >,
 		) {
@@ -186,15 +214,24 @@ namespace $ {
 				if( !chunks ) this._ws_income_chunks.set( sock, chunks = [] )
 				
 				chunks.push( chunk )
-				const patial_size = chunks.reduce( ( sum, buf )=> sum + buf.byteLength, 0 )
 				
 				let frame = $mol_websocket_frame.from( chunks[0] )
-				const msg_size = frame.size() + frame.data().size
+				let header_size = frame.size()
 				
-				if( msg_size > patial_size ) {
-					setTimeout( ()=> sock.resume() )
-					return
+				if( chunks[0].byteLength < header_size ) {
+					if( chunks.length < 2 ) return setTimeout( ()=> sock.resume() ), undefined
+					
+					chunk = Buffer.from([ ... chunks[0], ... chunks[1] ])
+					chunks.splice( 0, 2, chunk )
+					frame = $mol_websocket_frame.from( chunk )
+					header_size = frame.size()
+					
+					if( chunk.byteLength < header_size ) return setTimeout( ()=> sock.resume() ), undefined
 				}
+				
+				const msg_size = header_size + frame.data().size
+				const patial_size = chunks.reduce( ( sum, buf )=> sum + buf.byteLength, 0 )
+				if( msg_size > patial_size ) return setTimeout( ()=> sock.resume() ), undefined
 				
 				chunk = Buffer.alloc( patial_size )
 				let offset = 0
@@ -209,7 +246,7 @@ namespace $ {
 					sock.unshift( tail )
 				}
 				
-				let data: string | Uint8Array = new Uint8Array( chunk.buffer, chunk.byteOffset + frame.size(), frame.data().size )
+				let data: string | Uint8Array< ArrayBuffer > = new Uint8Array( chunk.buffer, chunk.byteOffset + frame.size(), frame.data().size )
 				
 				if( frame.data().mask ) {
 					const mask = frame.mask()
@@ -235,10 +272,10 @@ namespace $ {
 					if( typeof frames[0] === 'string' ) {
 						data = ( frames as string[] ).join( '' )
 					} else {
-						const size = ( frames as Uint8Array[] ).reduce( ( s, f )=> s + f.byteLength, 0 )
+						const size = ( frames as Uint8Array< ArrayBuffer >[] ).reduce( ( s, f )=> s + f.byteLength, 0 )
 						data = new Uint8Array( size )
 						let offset = 0
-						for( const frame of ( frames as Uint8Array[] ) ) {
+						for( const frame of ( frames as Uint8Array< ArrayBuffer >[] ) ) {
 							data.set( frame, offset )
 							offset += frame.byteLength
 						}
@@ -251,14 +288,16 @@ namespace $ {
 					return
 				}
 			
-				const message = upgrade.derive( 'POST', data )
+				const type = typeof data === 'string' ? 'text/plain' : 'application/octet-stream'
+				const message = upgrade.derive( 'POST', data, type )
 				
 				if( data.length !== 0 ) {
-					this.$.$mol_log3_rise({
+					if( this.log() ) this.$.$mol_log3_rise({
 						place: this,
 						message: message.method(),
 						port: $mol_key( message.port ),
 						url: message.uri(),
+						origin: message.origin(),
 						frame: frame.toString(),
 					})
 					await $mol_wire_async( this.root() ).REQUEST( message )
@@ -273,6 +312,9 @@ namespace $ {
 				$$.$mol_log3_fail({
 					place: this,
 					message: error.message ?? '',
+					origin: upgrade.origin(),
+					address: upgrade.address(),
+					cause: error.cause,
 					stack: error.stack,
 				})
 				
@@ -286,6 +328,10 @@ namespace $ {
 		root( resource?: $mol_rest_resource ) {
 			$mol_wire_solid()
 			return resource ?? $mol_rest_resource.make({})
+		}
+		
+		;[ Symbol.for( 'nodejs.util.inspect.custom' ) ]() {
+			return $mol_term_color.blue( '$mol_rest_server' )
 		}
 		
 	}

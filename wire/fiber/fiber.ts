@@ -1,6 +1,6 @@
 namespace $ {
 	
-	const handled = new WeakSet< Promise< unknown > >()
+	const wrappers = new WeakMap< Promise< unknown >, Promise< any > >()
 	
 	/**
 	 * Suspendable task with support both sync/async api.
@@ -64,8 +64,6 @@ namespace $ {
 			
 		}
 		
-		[Symbol.toStringTag]!: string
-
 		public cache: Result | Error | Promise< Result | Error > = undefined as any
 		
 		get args() {
@@ -83,7 +81,7 @@ namespace $ {
 		}
 		
 		field() {
-			return this.task.name + '<>'
+			return this.task.name + '()'
 		}
 		
 		constructor(
@@ -93,10 +91,9 @@ namespace $ {
 			args?: Args
 		) {
 			
-			super()
+			super( id )
 			if( args ) this.data.push( ... args )
 			this.pub_from = this.sub_from = args?.length ?? 0
-			this[ Symbol.toStringTag ] = id
 			
 		}
 		
@@ -130,15 +127,13 @@ namespace $ {
 			
 			return $mol_dev_format_div( {},
 				$mol_owning_check( this, this.cache )
-					? $mol_dev_format_auto({
-						[ $mol_dev_format_head ]: ()=> $mol_dev_format_shade( cursor ),
-						[ $mol_dev_format_body ]: ()=> $mol_dev_format_native( this ),
-					})
-					: $mol_dev_format_shade( $mol_dev_format_native( this ), cursor ),
+					? $mol_dev_format_shade( cursor )
+					: $mol_dev_format_shade( this[ Symbol.toStringTag ], cursor ),
 				$mol_dev_format_auto( this.cache ),
 			)
 			
 		}
+		[ $mol_dev_format_body ]() { return null }
 		
 		get $() {
 			return ( this.host ?? this.task as any )['$']
@@ -179,14 +174,27 @@ namespace $ {
 					default: result = (this.task as any).call( this.host!, ... this.args ); break
 				}
 				
-				if( $mol_promise_like( result ) && !handled.has( result ) ) {
-					
-					const put = ( res: Result )=> {
-						if( this.cache === result ) this.put( res )
-						return res
+				if( $mol_promise_like( result ) ) {
+
+					if( wrappers.has( result ) ) {
+						result = wrappers.get( result )!.then(a=>a)
+					} else {
+						
+						const put = ( res: Result )=> {
+							if( this.cache === result ) this.put( res )
+							return res
+						}
+
+						wrappers.set( result, result = Object.assign(
+							result.then( put, put ),
+							{ destructor: ( result as any ).destructor || (()=> {}) }
+						) )
+						wrappers.set( result, result )
+
+						const error = new Error( `Promise in ${ this }` )
+						Object.defineProperty( result, 'stack', { get: ()=> error.stack } )
+
 					}
-					result = result.then( put, put )
-					
 				}
 				
 			} catch( error: any ) {
@@ -197,25 +205,28 @@ namespace $ {
 					result = new Error( String( error ), { cause: error } )
 				}
 				
-				if( $mol_promise_like( result ) && !handled.has( result ) ) {
+				if( $mol_promise_like( result ) ) {
 					
-					result = result.finally( ()=> {
-						if( this.cache === result ) this.absorb()
-					} )
+					if( wrappers.has( result ) ) {
+						result = wrappers.get( result )!
+					} else {
+						
+						const put = ( v: any )=> {
+							if( this.cache === result ) this.absorb()
+							return v
+						}
+						
+						wrappers.set( result, result = Object.assign(
+							result.then( put, put ),
+							{ destructor: ( result as any ).destructor || (()=> {}) }
+						) )
+						
+						const error = new Error( `Promise in ${ this }` )
+						Object.defineProperty( result, 'stack', { get: ()=> error.stack } )
+
+					}
 					
 				}
-				
-			}
-			
-			if( $mol_promise_like( result ) && !handled.has( result ) ) {
-					
-				result = Object.assign( result, {
-					destructor: (result as any)['destructor'] ?? (()=> {})
-				} )
-				handled.add( result )
-				
-				const error = new Error( `Promise in ${ this }` )
-				Object.defineProperty( result, 'stack', { get: ()=> error.stack } )
 				
 			}
 			
@@ -264,7 +275,7 @@ namespace $ {
 		 * Asynchronous execution.
 		 * It's SuspenseAPI consumer. So SuspenseAPI providers can be called inside.
 		 */
-		async async() {
+		async async_raw() {
 			
 			while( true ) {
 				
@@ -287,6 +298,14 @@ namespace $ {
 			}
 			
 		}
+
+		async() {
+			const promise = this.async_raw() as Promise<Result> & { destructor(): void }
+
+			if (! promise.destructor) promise.destructor = () => this.destructor()
+
+			return promise
+		}
 		
 		step() {
 			return new Promise< null >( done => {
@@ -299,6 +318,27 @@ namespace $ {
 					setTimeout( ()=> sub.destructor() )
 				}
 			} )
+		}
+
+		destructor() {
+			
+			super.destructor()
+			
+			$mol_wire_fiber.planning.delete( this )
+			
+			if( ! $mol_owning_check( this, this.cache ) ) return
+
+			try {
+				this.cache.destructor()
+			} catch (result) {
+				if ($mol_promise_like(result)) {
+					const error = new Error( `Promise in ${ this }.destructor()` )
+					Object.defineProperty( result, 'stack', { get: ()=> error.stack } )
+				}
+
+				$mol_fail_hidden(result)
+			}
+
 		}
 		
 	}

@@ -1,23 +1,20 @@
 namespace $.$$ {
 
-	type Primitive = string | number | boolean
-
-	type Value = readonly Primitive[] | Primitive | Record<string, boolean>
-	type Model = Record<string, (next?: Value | null) => Value>
+	type Model = Record<string, (next?: $mol_form_draft_state_value | null) => $mol_form_draft_state_value>
 
 	function norm_string(val: unknown) {
 		return String(val ?? '')
 	}
 
 	function norm_number(val: unknown) {
-		return Number(val ?? 0)
+		return val === '' ? Number.NaN : Number(val ?? 0)
 	}
 
 	function norm_bool(val: unknown) {
 		return Boolean(val ?? false)
 	}
 
-	function normalize_val(prev: Value, next: Value | null) {
+	function normalize_val(prev: $mol_form_draft_state_value, next: $mol_form_draft_state_value | null) {
 		switch( typeof prev ) {
 			case 'boolean': return String( next ) === 'true'
 			case 'number': return Number( next )
@@ -66,68 +63,91 @@ namespace $.$$ {
 			return norm_bool( this.value( field, next ) )
 		}
 
-		model_pick(field: string, next?: Value | null) {
+		override model_pick(field: string, next?: $mol_form_draft_state_value | null) {
 			return (this.model() as unknown as Model)[field](next)
 		}
 
-		state_pick(field: string, next?: Value | null) {
+		override state_pick(field: string, next?: $mol_form_draft_state_value | null) {
 			return this.state( next === undefined ? next : { ... this.state(), [ field ]: next } )[ field ]
 		}
 
 		@ $mol_mem_key
-		value<T extends Value>( field: string, next?: T | null ): T {
+		override value<T extends $mol_form_draft_state_value>( field: string, next?: T | null ): T {
 			if (Array.isArray(next) && next.length === 0 && ! this.model_pick(field)) next = null
 			return this.state_pick(field, next) as T ?? this.model_pick(field)
 		}
 
 		@ $mol_mem_key
-		override value_changed(field: string) {
-			const next = this.state_pick(field)
-			const prev = this.model_pick(field)
-			const next_norm = normalize_val(prev, next)
+		override value_changed(field: string): boolean {
+			const prev = $mol_wire_probe(() => this.value_changed(field))
 
-			return ! $mol_compare_deep(next_norm, prev)
+			try {
+				const next = this.state_pick(field)
+				const prev = this.model_pick(field)
+				const next_norm = normalize_val(prev, next)
+	
+				return ! $mol_compare_deep(next_norm, prev)
+			} catch (e) {
+				$mol_fail_log(e)
+				return prev ?? false
+			}
 		}
 		
 		@ $mol_mem
-		state( next?: Record< string, Value | null > | null ) {
-			return $mol_state_local.value( `${ this }.state()`, next ) ?? {}
+		override state( next?: $mol_form_draft_state ) {
+			return this.$.$mol_state_local.value( `${ this }.state()`, next ) ?? {}
 		}
 		
 		@ $mol_mem
 		override changed() {
 			return Object.keys(this.state()).some(field => this.value_changed(field))
 		}
-		
-		override submit_allowed() {
-			return this.changed() && super.submit_allowed()
-		}
 
 		override reset(next?: unknown) {
 			this.state(null)
 		}
 
-		@ $mol_action
-		override submit( next? : Event ) {
-			
-			const tasks = Object.entries( this.state() ).map(
-				([ field, next ]) => () => {
-					const prev = this.model_pick(field)
+		@ $mol_mem
+		override result( next?: string | Error ) {
+			this.state()
+			if (next instanceof Error) next = this.errors()[next.message] || next.message || this.form_invalid()
 
-					return {
-						field,
-						next: normalize_val(prev, next)
-					}
-				}
-			)
-
-			const normalized = $mol_wire_race(...tasks)
-
-			$mol_wire_race(...normalized.map(({ field, next }) => () => this.model_pick( field, next )))
-			
-			this.reset()
-			
+			return next ?? ''
 		}
 		
+		@ $mol_mem
+		override buttons() {
+			return [
+				this.Submit(),
+				... this.changed() ? [ this.Reset() ] : [],
+				... this.result() ? [ this.Result() ] : [],
+			]
+		}
+
+		@ $mol_action
+		override state_normalized() {
+			const tasks = Object.entries( this.state() ).map(([ field, next ]) => () => ([
+				field,
+				normalize_val(this.model_pick(field), next)
+			] as const))
+
+			return $mol_wire_race(...tasks)
+		}
+
+		override model_push() {
+			const normalized = this.state_normalized()
+			$mol_wire_race(...normalized.map(([ field, next ]) => () => this.model_pick( field, next )))
+			return null
+		}
+
+		@ $mol_action
+		override save(next?: Event) {
+			this.model_push()
+			this.reset()
+			this.done(next)
+
+			return null
+		}
+
 	}
 }

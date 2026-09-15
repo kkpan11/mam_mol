@@ -11,8 +11,15 @@ namespace $.$$ {
 		
 		Rows: {
 			padding: $mol_gap.text,
+			minWidth: 0,
 		},
 		
+		Row: {
+			font: {
+				family: 'inherit',
+			},
+		},
+
 		Copy: {
 			alignSelf: 'flex-start',
 			justifySelf: 'flex-start',
@@ -21,9 +28,9 @@ namespace $.$$ {
 		'@': {
 			'mol_text_code_sidebar_showed': {
 				true: {
-					$mol_text_code_row: {
+					$mol_text_code_line: {
 						margin: {
-							left: rem(1.75),
+							inlineStart: '1.75rem',
 						},
 					},
 				},

@@ -16,6 +16,7 @@
 	max-width: 100%;
 	display: block;
 	max-width: 60rem;
+	break-inside: avoid;
 }
 
 [mol_text_spoiler_label_paragraph] {
@@ -37,12 +38,15 @@
 	padding: var(--mol_gap_block);
 	background: var(--mol_theme_card);
 	box-shadow: 0 0 0 1px var(--mol_theme_back);
+	break-inside: avoid;
 }
 
 [mol_text_header] {
 	display: block;
 	text-shadow: 0 0;
 	font-weight: normal;
+	break-after: avoid;
+	letter-spacing: 2px;
 }
 
 * + [mol_text_header] {
@@ -80,12 +84,20 @@ h6[mol_text_header] {
 	color: inherit;
 }
 
+[mol_text_table] {
+	break-inside: avoid;
+}
+
 [mol_text_table_cell] {
 	width: auto;
 	display: table-cell;
 	vertical-align: baseline;
 	padding: 0;
 	border-radius: 0;
+}
+
+[mol_text_grid] {
+	break-inside: avoid;
 }
 
 [mol_text_grid_cell] {
@@ -110,7 +122,7 @@ h6[mol_text_header] {
 }
 
 [mol_text_link_icon] + [mol_text_embed] {
-	margin-left: -1.5rem;
+	margin-inline-start: -1.5rem;
 }
 
 [mol_text_embed_youtube] {
@@ -122,10 +134,8 @@ h6[mol_text_header] {
 [mol_text_embed_object] {
 	object-fit: contain;
 	object-position: center;
-	display: inline;
 	width: 100vw;
 	max-height: calc( 100vh - 6rem );
-	vertical-align: top;
 }
 [mol_text_embed_object_fallback] {
 	padding: 0;
@@ -143,11 +153,11 @@ h6[mol_text_header] {
 	overflow-x: auto;
 	overflow-x: overlay;
 	tab-size: 2;
+	break-inside: avoid;
 }
 
 [mol_text_code_line] {
 	display: inline-block;
-	white-space: nowrap;
 }
 
 [mol_text_type="strong"] {
